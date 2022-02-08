@@ -148,10 +148,7 @@ def get_stats(team,item): #Loads Dict to put into Player object, loaded from Tea
 
     return playername
 
-def batter(lineupnumber,team):
-    '''
-    Takes in the current lineup number for the team at bat and returns the players batting and running skill and name.
-    '''
+def batter(lineupnumber,team): #Takes in the current lineup number for the team at bat and returns the players batting and running skill and name.
     batterrating = team.loc[team['player_lineup'] == lineupnumber]['player_batting'].values[0]
     player_name = team.loc[team['player_lineup'] == lineupnumber]['player_name'].values[0]
     batter_running = team.loc[team['player_lineup'] == lineupnumber]['player_running'].values[0]
@@ -169,7 +166,7 @@ def throw_pitch(pitcherrating,batterrating): #All actions from pitch to where ba
     action,distance,hitangle,hitlift = hit_pitch(pitch,pitchspeed,batterrating)
     return action,distance,hitangle,hitlift
 
-def hit_pitch(pitch,pitchspeed,batterrating):
+def hit_pitch(pitch,pitchspeed,batterrating): #Determines if the batter hits the ball
     idpitch = random.randint(0,100)
     hitpower = random.randint(0,int(batterrating))
     anglecoinflip = random.randint(0,1)
@@ -196,7 +193,7 @@ def hit_pitch(pitch,pitchspeed,batterrating):
     hitlift = random.randint(0,int(batterrating))
     return action,distance,hitangle,hitlift
 
-def field_hit(distance,hitangle,hitlift,team,batter_running):
+def field_hit(distance,hitangle,hitlift,team,batter_running): #MOVED TO MAIN() -- Determines where the ball goes when hit and initial proposed structure for who attempts to catch the ball
     # Homerun Hits take off between 25-30 degrees typically. 
     # Groundball is <10 degrees, 
     # Line drive is 10-25 degrees, 
@@ -252,7 +249,7 @@ def main():
     database = r"smallballdb.db"
     conn = create_connection(database)
     homeid = 1
-    awayid = 2
+    awayid = 1
     hometeam = Team(homeid,conn)
     awayteam = Team(awayid,conn)
     atbat= awayteam
@@ -329,7 +326,10 @@ def main():
                 elif action == "ball":
                     game.Ball()
                 else:
-                    game.AwayHit() if atbat == awayteam else game.HomeHit()
+                    if atbat == awayteam:
+                        game.AwayHit()
+                    elif atbat == hometeam: 
+                        game.HomeHit()
                     #field_hit(distance,hitangle,hitlift,fielding.lineup,batter_running)
             if game.strike == 3 or action == 'fly out':
                 game.Outs()
