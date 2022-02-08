@@ -243,13 +243,11 @@ def field_hit(distance,hitangle,hitlift,team,batter_running): #MOVED TO MAIN() -
 
 
 def main():
-    '''
     
-    '''
     database = r"smallballdb.db"
     conn = create_connection(database)
-    homeid = 1
-    awayid = 1
+    homeid = 6
+    awayid = 6
     hometeam = Team(homeid,conn)
     awayteam = Team(awayid,conn)
     atbat= awayteam
@@ -276,44 +274,19 @@ def main():
                     # Line drive is 10-25 degrees, 
                     # Fly ball is 25-50, 
                     # Pop up is 50 or higher
-                    lvl0 = 30 #catcher gets the ball
-                    lvl1 = 45 #pitcher gets the ball
-                    lvl2 = 120 #infielder gets the ball
-                    inangle1 = 52 #thirdbase gets the ball
-                    inangle2 = 75 #SS gets the ball
-                    inangle3 = 88 #2B gets the ball
-                    outangle1 = 60 #LF gets the ball
-                    outangle2 = 90 #CF gets the ball
+
                     batter_to_base = 8 - (batter_running/100)*2
                     #print(batter_to_base)
 
                     time_in_air = round(abs((((distance * math.sin(hitlift))+(distance * math.sin(hitlift)))/(9.8*3.281))),2)
                     air_distance = round(time_in_air*abs((distance * math.cos(hitlift))))
-                    if air_distance <= lvl0:
-                        responder = ['C',0,75]
-                    elif air_distance <=lvl1:
-                        responder = ['P',60,0]
-                    elif air_distance <= lvl2:
-                        if hitangle <= inangle1:
-                            responder = ['3B',95,35]
-                        elif hitangle <= inangle2:
-                            responder = ['SS',122,70]
-                        elif hitangle <= inangle3:
-                            responder = ['2B',122,80]
-                        else:
-                            responder = ['1B',95,115]
-                    else:
-                        if hitangle <= outangle1:
-                            responder = ['LF',210,52]
-                        elif hitangle <= outangle2:
-                            responder = ['CF',264,75]
-                        else:
-                            responder = ['RF',210,98]
 
-                    #print('The ball traveled ',air_distance,'ft in ',time_in_air,' seconds towards ',responder[0])
+                    print('The ball launched at ',hitlift,'degrees for ',air_distance,'ft in ',time_in_air)
                     groundroll = air_distance*.3
-                    if air_distance <=120:
-                        action = "fly out"
+                    if air_distance <=120: #------------------------------------------------------------------------------FOR TESTING ONLY
+                        action = "fly out" #------------------------------------------------------------------------------FOR TESTING ONLY
+                    if batter_to_base < time_in_air*2+1:#------------------------------------------------------------------------------FOR TESTING ONLY
+                        action = "out at first"#------------------------------------------------------------------------------FOR TESTING ONLY
 
 
 
@@ -325,18 +298,19 @@ def main():
                     game.Strike()
                 elif action == "ball":
                     game.Ball()
-                else:
+                elif action == 'hit':
                     if atbat == awayteam:
                         game.AwayHit()
                     elif atbat == hometeam: 
                         game.HomeHit()
                     #field_hit(distance,hitangle,hitlift,fielding.lineup,batter_running)
-            if game.strike == 3 or action == 'fly out':
+            if game.strike == 3 or action == 'fly out' or action == 'out at first':
                 game.Outs()
             elif game.ball == 4:
                 if atbat == awayteam:
+                    pass
                     game.awayWalks = game.awayWalks + 1
-                elif atbat == hometeam:
+                else:
                     game.homeWalks = game.homeWalks + 1
             # else:
             #     print(playername," gets a hit!")
@@ -346,7 +320,7 @@ def main():
             if game.outs == 3 and atbat == awayteam:
                 atbat = hometeam
                 fielding = awayteam
-            elif game.outs == 3:
+            elif game.outs == 6:
                 atbat = awayteam
                 fielding = hometeam
 
