@@ -138,10 +138,10 @@ def statGen(x): # generate stats for an individual player and return them
     lineup = x+1
     position = positions[x]
     
-    batting = random.randrange(80,90) + a
-    running = random.randrange(80,90) + b
-    throwing = random.randrange(80,90) + c
-    catching = random.randrange(80,90) + d
+    batting = random.randrange(2,5) + a
+    running = random.randrange(2,5) + b
+    throwing = random.randrange(2,5) + c
+    catching = random.randrange(2,5) + d
     
     #id = playerStats(batting,running,throwing,catching,strength)
     return batting, running, throwing, catching, strength, morale, position, lineup
