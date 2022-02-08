@@ -239,11 +239,23 @@ def field_hit(distance,hitangle,hitlift,team,batter_running): #MOVED TO MAIN() -
     print('The ball traveled ',air_distance,'ft in ',time_in_air,' seconds towards ',responder[0])
     groundroll = air_distance*.3
 
+def reset_positions(FieldPositions)
+    CPos = [0,0]
+    PPos = [42.5,42.5]
+    FirPos = [99,25]
+    SecPos = [99,65]
+    SSPos = [65,99]
+    ThiPos = [25,99]
+    LFPos = [90,225]
+    CFPos = [210,210]
+    RFPos = [225,90]
+    FieldPositions = [CPos,PPos,FirPos,SecPos,SSPos,ThiPos,LFPos,CFPos,RFPos]
 
+    return FieldPositions
 
 
 def main():
-    
+
     database = r"smallballdb.db"
     conn = create_connection(database)
     homeid = 6
