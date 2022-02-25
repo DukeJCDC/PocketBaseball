@@ -56,9 +56,10 @@ def create_scoreboard(conn):
         print(e)
 
 class Player: #Loads player stats into player object, adjusting for morale
+    #Running speed: 23ft/sec is slow, 27ft/sec is average, 30ft/sec is fast
     def __init__(self, batting, running, throwing, catching, pos, morale, lineup, player_name):
         self.batting = batting * (morale/100)
-        self.running = running * (morale/100)
+        self.running = round((running * (morale/100))/100 * 7 + 23)
         self.throwing = throwing * (morale/100)
         self.catching = catching * (morale/100)
         self.pos = pos
@@ -193,12 +194,13 @@ def hit_pitch(pitch,pitchspeed,batterrating): #Determines if the batter hits the
     hitlift = random.randint(0,int(batterrating))
     return action,distance,hitangle,hitlift
 
-def field_hit(distance,hitangle,hitlift,team,batter_running): #MOVED TO MAIN() -- Determines where the ball goes when hit and initial proposed structure for who attempts to catch the ball
+def field_hitOLD(distance,hitangle,hitlift,team,batter_running): #MOVED TO MAIN() -- Determines where the ball goes when hit and initial proposed structure for who attempts to catch the ball
     # Homerun Hits take off between 25-30 degrees typically. 
     # Groundball is <10 degrees, 
     # Line drive is 10-25 degrees, 
     # Fly ball is 25-50, 
     # Pop up is 50 or higher
+
     lvl0 = 30 #catcher gets the ball
     lvl1 = 45 #pitcher gets the ball
     lvl2 = 120 #infielder gets the ball
@@ -239,9 +241,9 @@ def field_hit(distance,hitangle,hitlift,team,batter_running): #MOVED TO MAIN() -
     print('The ball traveled ',air_distance,'ft in ',time_in_air,' seconds towards ',responder[0])
     groundroll = air_distance*.3
 
-def reset_positions(FieldPositions)
+def reset_positions():
     CPos = [0,0]
-    PPos = [42.5,42.5]
+    PPos = [42,42]
     FirPos = [99,25]
     SecPos = [99,65]
     SSPos = [65,99]
@@ -249,17 +251,79 @@ def reset_positions(FieldPositions)
     LFPos = [90,225]
     CFPos = [210,210]
     RFPos = [225,90]
-    FieldPositions = [CPos,PPos,FirPos,SecPos,SSPos,ThiPos,LFPos,CFPos,RFPos]
-
+    FirstBase = [90,0]
+    SecondBase = [90,90]
+    ThirdBase = [0,90]
+    HomeBase = [0,0]
+    FieldPositions = {'C': CPos,'P': PPos,'FIR': FirPos,'SEC': SecPos,'SS': SSPos,'THI':ThiPos,'LF':LFPos,'CF':CFPos,'RF':RFPos}
     return FieldPositions
 
+def field_hit(batter_running,distance,hitlift,hitangle,fielding):
+    #In Play hit is angle 0 to 90 degrees
+    # Homerun Hits take off between 25-30 degrees typically. 
+    # Groundball is <10 degrees, 
+    # Line drive is 10-25 degrees, 
+    # Fly ball is 25-50, 
+    # Pop up is 50 or higher
+    hitangle = hitangle - 30
+    if hitangle < 0 or hitangle > 90:
+        action = 'foul'
+        return action
+    elif hitlift >= 50:
+        action = 'fly out'
+        return action
+    else:
+        action = 'hit'
+        #return action
+        FieldPositions = reset_positions()
+        batter_to_base = 90/batter_running
+        time_in_air = round(abs((((distance * math.sin(hitlift))+(distance * math.sin(hitlift)))/(9.8*3.281))),2)
+        air_distance = round(time_in_air*abs((distance * math.cos(hitlift))))
+        if air_distance > 300:
+            print('Home run!')
+            action = 'hit'
+            return action
+        # print('The ball launched at ',hitlift,'degrees for ',air_distance,'ft in ',time_in_air)
+        groundroll = air_distance*.3
+        nearest_position = None
+        nearest_distance = 1000
+        x_pos = abs(round(air_distance * math.cos(hitangle)))
+        y_pos = abs(round(air_distance * math.sin(hitangle)))
+        #print('Angle is ',hitangle,' to (',x_pos,',',y_pos,')')
+        
+        for item in FieldPositions:
+            item_x = FieldPositions.get(item)[0]
+            item_y = FieldPositions.get(item)[1]
+            distance_to_player = round(math.sqrt(((x_pos-item_x) ** 2) + ((y_pos-item_y) ** 2)),0)
+            if distance_to_player < nearest_distance:
+                nearest_distance = distance_to_player
+                nearest_position = item
+        nearest_position_running = getattr(getattr(fielding,nearest_position),'running')
+        nearest_position_catching = getattr(getattr(fielding,nearest_position),'catching')
+        fielder_to_ball = nearest_distance/nearest_position_running
+        if time_in_air >= fielder_to_ball:
+            if random.randint(0,100) <= nearest_position_catching:
+                action = 'fly out'
+                print(nearest_position,'caught the ball')
+                return action 
+            else:
+                action = 'hit'
+                print(nearest_position, 'missed!')
+                return action
+        else:
+            print(nearest_position,'gets the ball hit to (',x_pos,',',y_pos,'). The ball is ',nearest_distance,'units away')
+            return action
+  
+
+    
+    
 
 def main():
 
     database = r"smallballdb.db"
     conn = create_connection(database)
-    homeid = 6
-    awayid = 6
+    homeid = 3
+    awayid = 3
     hometeam = Team(homeid,conn)
     awayteam = Team(awayid,conn)
     atbat= awayteam
@@ -285,27 +349,11 @@ def main():
                     # Groundball is <10 degrees, 
                     # Line drive is 10-25 degrees, 
                     # Fly ball is 25-50, 
-                    # Pop up is 50 or higher
+                    # Pop up is 50 or higher                    
+                    action = field_hit(batter_running,distance,hitlift,hitangle,fielding)
 
-                    batter_to_base = 8 - (batter_running/100)*2
-                    #print(batter_to_base)
-
-                    time_in_air = round(abs((((distance * math.sin(hitlift))+(distance * math.sin(hitlift)))/(9.8*3.281))),2)
-                    air_distance = round(time_in_air*abs((distance * math.cos(hitlift))))
-
-                    print('The ball launched at ',hitlift,'degrees for ',air_distance,'ft in ',time_in_air)
-                    groundroll = air_distance*.3
-                    if air_distance <=120: #------------------------------------------------------------------------------FOR TESTING ONLY
-                        action = "fly out" #------------------------------------------------------------------------------FOR TESTING ONLY
-                    if batter_to_base < time_in_air*2+1:#------------------------------------------------------------------------------FOR TESTING ONLY
-                        action = "out at first"#------------------------------------------------------------------------------FOR TESTING ONLY
-
-
-
-
-
-
-
+                if game.strike <3 and action == "foul":
+                    game.Strike()
                 if action == "strike":
                     game.Strike()
                 elif action == "ball":
@@ -320,7 +368,6 @@ def main():
                 game.Outs()
             elif game.ball == 4:
                 if atbat == awayteam:
-                    pass
                     game.awayWalks = game.awayWalks + 1
                 else:
                     game.homeWalks = game.homeWalks + 1
@@ -328,15 +375,16 @@ def main():
             #     print(playername," gets a hit!")
             action = None
             game.ResetCount()
-            game.nextawayBatter()
+            if atbat == awayteam:
+                game.nextawayBatter()
+            else:
+                game.nexthomeBatter()
             if game.outs == 3 and atbat == awayteam:
                 atbat = hometeam
                 fielding = awayteam
             elif game.outs == 6:
                 atbat = awayteam
                 fielding = hometeam
-
-
         game.ResetInning()
         game.nextInning()
     print('Away Hits - ',game.awayHits)
@@ -344,5 +392,5 @@ def main():
     print('Home Hits - ',game.homeHits)
     print('Home Walks - ',game.homeWalks)
     print ('Home Pitcher - ',hometeam.P.throwing,' | Away Pitcher - ',awayteam.P.throwing)
-
+    
 main()
