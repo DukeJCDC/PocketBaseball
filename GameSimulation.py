@@ -64,7 +64,7 @@ class Player: #Loads player stats into player object, adjusting for morale
     #Running speed: 23ft/sec is slow, 27ft/sec is average, 30ft/sec is fast
     def __init__(self, batting, running, throwing, catching, pos, morale, lineup, player_name):
         self.batting = batting * (morale/100)
-        self.running = round((running * (morale/100))/100 * 7 + 23)
+        self.running = round((running * (morale/100))/100 * 7 + 21)
         self.throwing = throwing * (morale/100)
         self.catching = catching * (morale/100)
         self.pos = pos
@@ -217,6 +217,19 @@ def reset_positions():
     FieldPositions = {'C': CPos,'P': PPos,'FIR': FirPos,'SEC': SecPos,'SS': SSPos,'THI':ThiPos,'LF':LFPos,'CF':CFPos,'RF':RFPos}
     return FieldPositions
 
+def calculate_distance(aX,aY,bX,bY):
+    distance = abs(round(math.sqrt(((aX-bX) ** 2) + ((aY-bY) ** 2)),0))
+    return distance
+
+def time_of_flight(distance,liftangle):
+    pass
+
+def find_coordinates(distance,angle):
+    x_pos = abs(round(distance * math.cos(angle)))
+    y_pos = abs(round(distance * math.sin(angle)))
+    position = [x_pos,y_pos]
+    return position
+
 def field_hit(batter_running,distance,hitlift,hitangle,fielding):
     #In Play hit is angle 0 to 90 degrees
     # Homerun Hits take off between 25-30 degrees typically. 
@@ -243,32 +256,36 @@ def field_hit(batter_running,distance,hitlift,hitangle,fielding):
             action = 'hit'
             return action
         # print('The ball launched at ',hitlift,'degrees for ',air_distance,'ft in ',time_in_air)
-        groundroll = air_distance*.3
+        groundroll = distance*.3
         nearest_position = None
         nearest_distance = 1000
         x_pos = abs(round(air_distance * math.cos(hitangle)))
         y_pos = abs(round(air_distance * math.sin(hitangle)))
+        ball_land = [x_pos,y_pos]
+        #ball_roll 
         #print('Angle is ',hitangle,' to (',x_pos,',',y_pos,')')
         
         for item in FieldPositions:
             item_x = FieldPositions.get(item)[0]
             item_y = FieldPositions.get(item)[1]
-            distance_to_player = round(math.sqrt(((x_pos-item_x) ** 2) + ((y_pos-item_y) ** 2)),0)
+            distance_to_player = calculate_distance(ball_land[0],item_x,ball_land[1],item_y)# round(math.sqrt(((x_pos-item_x) ** 2) + ((y_pos-item_y) ** 2)),0)
             if distance_to_player < nearest_distance:
                 nearest_distance = distance_to_player
                 nearest_position = item
         nearest_position_running = getattr(getattr(fielding,nearest_position),'running')
         nearest_position_catching = getattr(getattr(fielding,nearest_position),'catching')
+        nearest_position_catching = getattr(getattr(fielding,nearest_position),'throwing')
         fielder_to_ball = nearest_distance/nearest_position_running
         if time_in_air >= fielder_to_ball:
             if random.randint(0,100) <= nearest_position_catching:
                 action = 'fly out'
                 print(nearest_position,'caught the ball')
-                f.write(nearest_position + 'caught the ball')
                 return action 
             else:
                 action = 'hit'
                 print(nearest_position, 'missed!')
+                fielder_to_ball = (nearest_distance+groundroll)/nearest_position_running
+                #distance_to_first = calculate_distance()
                 return action
         else:
             print(nearest_position,'gets the ball hit to (',x_pos,',',y_pos,'). The ball is ',nearest_distance,'units away')
