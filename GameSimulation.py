@@ -153,7 +153,8 @@ def batter(lineupnumber,team): #Takes in the current lineup number for the team 
     batterrating = team.loc[team['player_lineup'] == lineupnumber]['player_batting'].values[0]
     player_name = team.loc[team['player_lineup'] == lineupnumber]['player_name'].values[0]
     batter_running = team.loc[team['player_lineup'] == lineupnumber]['player_running'].values[0]
-    return batterrating,player_name,batter_running
+    batter_position = team.loc[team['player_lineup'] == lineupnumber]['player_pos'].values[0]
+    return batterrating,player_name,batter_running,batter_position
 
 def throw_pitch(pitcherrating,batterrating): #All actions from pitch to where ball will land/roll
     pitchquality = random.randint(0,100)
@@ -193,53 +194,6 @@ def hit_pitch(pitch,pitchspeed,batterrating): #Determines if the batter hits the
     distance = hitpower * 1.25
     hitlift = random.randint(0,int(batterrating))
     return action,distance,hitangle,hitlift
-
-def field_hitOLD(distance,hitangle,hitlift,team,batter_running): #MOVED TO MAIN() -- Determines where the ball goes when hit and initial proposed structure for who attempts to catch the ball
-    # Homerun Hits take off between 25-30 degrees typically. 
-    # Groundball is <10 degrees, 
-    # Line drive is 10-25 degrees, 
-    # Fly ball is 25-50, 
-    # Pop up is 50 or higher
-
-    lvl0 = 30 #catcher gets the ball
-    lvl1 = 45 #pitcher gets the ball
-    lvl2 = 120 #infielder gets the ball
-    inangle1 = 52 #thirdbase gets the ball
-    inangle2 = 75 #SS gets the ball
-    inangle3 = 88 #2B gets the ball
-    outangle1 = 60 #LF gets the ball
-    outangle2 = 90 #CF gets the ball
-    batter_to_base = 8 - (batter_running/100)*2
-    #print(batter_to_base)
-
-    time_in_air = round(abs((((distance * math.sin(hitlift))+(distance * math.sin(hitlift)))/(9.8*3.281))),2)
-    air_distance = round(time_in_air*abs((distance * math.cos(hitlift))))
-    if air_distance <= lvl0:
-        responder = ['C',0,75]
-    elif air_distance <=lvl1:
-        responder = ['P',60,0]
-    elif air_distance <= lvl2:
-        if hitangle <= inangle1:
-            responder = ['3B',95,35]
-        elif hitangle <= inangle2:
-            responder = ['SS',122,70]
-        elif hitangle <= inangle3:
-            responder = ['2B',122,80]
-        else:
-            responder = ['1B',95,115]
-    else:
-        if hitangle <= outangle1:
-            responder = ['LF',210,52]
-        elif hitangle <= outangle2:
-            responder = ['CF',264,75]
-        else:
-            responder = ['RF',210,98]
-
-    responder_running = team.loc[team['player_pos'] == responder[0]]['player_running'].values[0]
-    responder_throw = team.loc[team['player_pos'] == responder[0]]['player_throwing'].values[0]
-    responder_catch = team.loc[team['player_pos'] == responder[0]]['player_catching'].values[0]
-    print('The ball traveled ',air_distance,'ft in ',time_in_air,' seconds towards ',responder[0])
-    groundroll = air_distance*.3
 
 def reset_positions():
     CPos = [0,0]
@@ -322,7 +276,7 @@ def main():
 
     database = r"smallballdb.db"
     conn = create_connection(database)
-    homeid = 3
+    homeid = 6
     awayid = 3
     hometeam = Team(homeid,conn)
     awayteam = Team(awayid,conn)
@@ -332,13 +286,15 @@ def main():
     game = Scoreboard(homeid,awayid)
     walks = 0
     while game.inning <9:
+        print('==========Top of ',game.inning+1,'==========')
         atbat= awayteam
         fielding = hometeam
         while game.outs <6:
             if atbat == awayteam:
-                batterrating,playername,batter_running = batter(game.awayBatter,awayteam.lineup)
+                batterrating,playername,batter_running,batter_position = batter(game.awayBatter,awayteam.lineup)
             elif atbat == hometeam:
-                batterrating,playername,batter_running = batter(game.homeBatter,hometeam.lineup)
+                batterrating,playername,batter_running,batter_position = batter(game.homeBatter,hometeam.lineup)
+            print(playername,'(',batter_position,') steps up to the plate!')    
 
 
             while not (game.strike == 3 or game.ball == 4 or action=='hit' or action=='fly out'):
@@ -366,11 +322,19 @@ def main():
                     #field_hit(distance,hitangle,hitlift,fielding.lineup,batter_running)
             if game.strike == 3 or action == 'fly out' or action == 'out at first':
                 game.Outs()
+                if action == 'out at first':
+                    print(playername,'(',batter_position,')  is out at first')
+                elif action == 'fly out':
+                    print(playername,'(',batter_position,') flies out')
+                else:
+                    print(playername,'(',batter_position,') strikes out')   
             elif game.ball == 4:
                 if atbat == awayteam:
                     game.awayWalks = game.awayWalks + 1
+                    
                 else:
                     game.homeWalks = game.homeWalks + 1
+                print(playername,'(',batter_position,') walks') 
             # else:
             #     print(playername," gets a hit!")
             action = None
@@ -382,10 +346,12 @@ def main():
             if game.outs == 3 and atbat == awayteam:
                 atbat = hometeam
                 fielding = awayteam
+                print('==========Bottom  of the ',game.inning+1,'==========')
             elif game.outs == 6:
                 atbat = awayteam
                 fielding = hometeam
         game.ResetInning()
+        print('==========',game.inning+1,'inning End==========')
         game.nextInning()
     print('Away Hits - ',game.awayHits)
     print('Away Walks - ',game.awayWalks)
