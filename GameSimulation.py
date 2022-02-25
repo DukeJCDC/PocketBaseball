@@ -6,6 +6,11 @@ from datetime import date
 import pandas as pd
 import math
 
+# with open('testfile.csv','a') as f:
+#     f.write('START GAME')
+# #     f.write('\n')
+# #     f.write("test,")
+
 def create_connection(db_file): #Create the database, otherwise connect to it if it exists
     """ create a database connection to the SQLite database
         specified by db_file
@@ -259,6 +264,7 @@ def field_hit(batter_running,distance,hitlift,hitangle,fielding):
             if random.randint(0,100) <= nearest_position_catching:
                 action = 'fly out'
                 print(nearest_position,'caught the ball')
+                f.write(nearest_position + 'caught the ball')
                 return action 
             else:
                 action = 'hit'
@@ -276,7 +282,7 @@ def main():
 
     database = r"smallballdb.db"
     conn = create_connection(database)
-    homeid = 6
+    homeid = 3
     awayid = 3
     hometeam = Team(homeid,conn)
     awayteam = Team(awayid,conn)
@@ -310,10 +316,16 @@ def main():
 
                 if game.strike <3 and action == "foul":
                     game.Strike()
+                    print('Foul ball!')
+                    print(game.ball,'-',game.strike)
                 if action == "strike":
                     game.Strike()
+                    print('Strike!')
+                    print(game.ball,'-',game.strike)
                 elif action == "ball":
                     game.Ball()
+                    print('Ball!')
+                    print(game.ball,'-',game.strike)
                 elif action == 'hit':
                     if atbat == awayteam:
                         game.AwayHit()
@@ -335,8 +347,6 @@ def main():
                 else:
                     game.homeWalks = game.homeWalks + 1
                 print(playername,'(',batter_position,') walks') 
-            # else:
-            #     print(playername," gets a hit!")
             action = None
             game.ResetCount()
             if atbat == awayteam:
