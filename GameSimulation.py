@@ -101,6 +101,8 @@ class Scoreboard: #Tracks all of the game stats and contains methods to update s
         self.awayHits = 0
         self.homeRuns = 0
         self.awayRuns = 0
+        self.homeHR = 0
+        self.awayHR = 0
         self.homeErrors = 0
         self.awayErrors = 0
         self.homeWalks = 0
@@ -108,6 +110,16 @@ class Scoreboard: #Tracks all of the game stats and contains methods to update s
         self.onFirst = []
         self.onSecond = []
         self.onThird = []
+    def HomeHR(self):
+        self.homeHR = self.homeHR + 1
+        self.HomeRun()
+    def AwayHR(self):
+        self.awayHR = self.awayHR + 1
+        self.AwayRun()
+    def HomeRun(self):
+        self.homeRuns = self.homeRuns + 1
+    def AwayRun(self):
+        self.awayRuns = self.awayRuns + 1
     def Strike(self):
         self.strike = self.strike + 1
     def Ball(self):
@@ -256,7 +268,7 @@ def field_hit(batter_running,distance,hitlift,hitangle,fielding):
         air_distance = round(time_in_air*abs((distance * math.cos(hitlift))))
         if air_distance > 300:
             print('Home run!')
-            action = 'hit'
+            action = 'home run'
             return action
         # print('The ball launched at ',hitlift,'degrees for ',air_distance,'ft in ',time_in_air)
         groundroll = distance*.3
@@ -284,14 +296,20 @@ def field_hit(batter_running,distance,hitlift,hitangle,fielding):
                 print(nearest_position,'caught the ball')
                 return action 
             else:
-                action = 'hit'
-                print(nearest_position, 'missed!')                
+                print(nearest_position, 'missed!') 
+
+    #=========================================================================================================
+    # ========================================================================================================
+    # ========================================================================================================
+    # BELOW THIS IS WHAT HAPPENS IF THE FIELDER CANNOT GET TO THE BALL IN TIME/MISSES THE CATCH               
     print(nearest_position,'gets the ball hit to (',ball_land[0],',',ball_land[1],'). The ball is ',nearest_distance,'units away')
     fielder_to_ball = calculate_distance(ball_roll[0],ball_roll[1],FieldPositions.get(nearest_position)[0],FieldPositions.get(nearest_position)[1])/nearest_position_running
     distance_to_base = calculate_distance(ball_roll[0],ball_roll[1],Bases.get('First')[0],Bases.get('First')[1])/nearest_position_throwing + 0.5
     if batter_to_base >= (fielder_to_ball+distance_to_base):
         print('out at first!')
         action = 'out at first'
+    else:
+        action = 'safe at first'
     return action
   
 
@@ -302,8 +320,8 @@ def main():
 
     database = r"smallballdb.db"
     conn = create_connection(database)
-    homeid = 2
-    awayid = 2
+    homeid = 3
+    awayid = 3
     hometeam = Team(homeid,conn)
     awayteam = Team(awayid,conn)
     atbat= awayteam
@@ -311,7 +329,7 @@ def main():
     action = None
     game = Scoreboard(homeid,awayid)
     walks = 0
-    while game.inning <9:
+    while (game.inning <9) or (game.awayRuns == game.homeRuns and game.inning >=9):
         print('==========Top of ',game.inning+1,'==========')
         atbat= awayteam
         fielding = hometeam
@@ -346,11 +364,15 @@ def main():
                     game.Ball()
                     print('Ball!')
                     print(game.ball,'-',game.strike)
-                elif action == 'hit':
+                elif action == 'safe at first' or action == 'home run':
                     if atbat == awayteam:
                         game.AwayHit()
+                        if action == 'home run':
+                            game.AwayHR()
                     elif atbat == hometeam: 
                         game.HomeHit()
+                        if action == 'home run':
+                            game.HomeHR()
                     #field_hit(distance,hitangle,hitlift,fielding.lineup,batter_running)
             if game.strike == 3 or action == 'fly out' or action == 'out at first' or action == 'out at first':
                 game.Outs()
@@ -388,5 +410,7 @@ def main():
     print('Home Hits - ',game.homeHits)
     print('Home Walks - ',game.homeWalks)
     print ('Home Pitcher - ',hometeam.P.throwing,' | Away Pitcher - ',awayteam.P.throwing)
+    print('Home Runs - ',game.homeRuns)
+    print('Away Runs - ',game.awayRuns)
     
 main()
