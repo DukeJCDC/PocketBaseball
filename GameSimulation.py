@@ -65,6 +65,7 @@ class Player: #Loads player stats into player object, adjusting for morale
     def __init__(self, batting, running, throwing, catching, pos, morale, lineup, player_name):
         self.batting = batting * (morale/100)
         self.running = round((running * (morale/100))/100 * 7 + 21)
+        self.throwingspeed = round((throwing * (morale/100))/100 * 40 + 100)
         self.throwing = throwing * (morale/100)
         self.catching = catching * (morale/100)
         self.pos = pos
@@ -215,10 +216,11 @@ def reset_positions():
     ThirdBase = [0,90]
     HomeBase = [0,0]
     FieldPositions = {'C': CPos,'P': PPos,'FIR': FirPos,'SEC': SecPos,'SS': SSPos,'THI':ThiPos,'LF':LFPos,'CF':CFPos,'RF':RFPos}
-    return FieldPositions
+    Bases = {'First': FirstBase, 'Second': SecondBase,'Third':ThirdBase,'Home':HomeBase}
+    return FieldPositions, Bases
 
 def calculate_distance(aX,aY,bX,bY):
-    distance = abs(round(math.sqrt(((aX-bX) ** 2) + ((aY-bY) ** 2)),0))
+    distance = round(math.sqrt(abs(((aX-bX) * (aX-bX))) + abs(((aY-bY) * (aY-bY)))),0)
     return distance
 
 def time_of_flight(distance,liftangle):
@@ -245,9 +247,10 @@ def field_hit(batter_running,distance,hitlift,hitangle,fielding):
         action = 'fly out'
         return action
     else:
+        print('Hit!')
         action = 'hit'
         #return action
-        FieldPositions = reset_positions()
+        FieldPositions,Bases = reset_positions()
         batter_to_base = 90/batter_running
         time_in_air = round(abs((((distance * math.sin(hitlift))+(distance * math.sin(hitlift)))/(9.8*3.281))),2)
         air_distance = round(time_in_air*abs((distance * math.cos(hitlift))))
@@ -259,22 +262,21 @@ def field_hit(batter_running,distance,hitlift,hitangle,fielding):
         groundroll = distance*.3
         nearest_position = None
         nearest_distance = 1000
-        x_pos = abs(round(air_distance * math.cos(hitangle)))
-        y_pos = abs(round(air_distance * math.sin(hitangle)))
-        ball_land = [x_pos,y_pos]
-        #ball_roll 
+        ball_land = find_coordinates(air_distance,hitangle)
+        ball_roll = find_coordinates(air_distance+groundroll,hitangle) 
         #print('Angle is ',hitangle,' to (',x_pos,',',y_pos,')')
         
         for item in FieldPositions:
             item_x = FieldPositions.get(item)[0]
             item_y = FieldPositions.get(item)[1]
-            distance_to_player = calculate_distance(ball_land[0],item_x,ball_land[1],item_y)# round(math.sqrt(((x_pos-item_x) ** 2) + ((y_pos-item_y) ** 2)),0)
-            if distance_to_player < nearest_distance:
+            distance_to_player = calculate_distance(ball_land[0],ball_land[1],item_x,item_y)
+            if distance_to_player <= nearest_distance:
                 nearest_distance = distance_to_player
                 nearest_position = item
+
         nearest_position_running = getattr(getattr(fielding,nearest_position),'running')
         nearest_position_catching = getattr(getattr(fielding,nearest_position),'catching')
-        nearest_position_catching = getattr(getattr(fielding,nearest_position),'throwing')
+        nearest_position_throwing = getattr(getattr(fielding,nearest_position),'throwingspeed')
         fielder_to_ball = nearest_distance/nearest_position_running
         if time_in_air >= fielder_to_ball:
             if random.randint(0,100) <= nearest_position_catching:
@@ -283,13 +285,14 @@ def field_hit(batter_running,distance,hitlift,hitangle,fielding):
                 return action 
             else:
                 action = 'hit'
-                print(nearest_position, 'missed!')
-                fielder_to_ball = (nearest_distance+groundroll)/nearest_position_running
-                #distance_to_first = calculate_distance()
-                return action
-        else:
-            print(nearest_position,'gets the ball hit to (',x_pos,',',y_pos,'). The ball is ',nearest_distance,'units away')
-            return action
+                print(nearest_position, 'missed!')                
+    print(nearest_position,'gets the ball hit to (',ball_land[0],',',ball_land[1],'). The ball is ',nearest_distance,'units away')
+    fielder_to_ball = calculate_distance(ball_roll[0],ball_roll[1],FieldPositions.get(nearest_position)[0],FieldPositions.get(nearest_position)[1])/nearest_position_running
+    distance_to_base = calculate_distance(ball_roll[0],ball_roll[1],Bases.get('First')[0],Bases.get('First')[1])/nearest_position_throwing + 0.5
+    if batter_to_base >= (fielder_to_ball+distance_to_base):
+        print('out at first!')
+        action = 'out at first'
+    return action
   
 
     
@@ -299,8 +302,8 @@ def main():
 
     database = r"smallballdb.db"
     conn = create_connection(database)
-    homeid = 3
-    awayid = 3
+    homeid = 2
+    awayid = 2
     hometeam = Team(homeid,conn)
     awayteam = Team(awayid,conn)
     atbat= awayteam
@@ -349,7 +352,7 @@ def main():
                     elif atbat == hometeam: 
                         game.HomeHit()
                     #field_hit(distance,hitangle,hitlift,fielding.lineup,batter_running)
-            if game.strike == 3 or action == 'fly out' or action == 'out at first':
+            if game.strike == 3 or action == 'fly out' or action == 'out at first' or action == 'out at first':
                 game.Outs()
                 if action == 'out at first':
                     print(playername,'(',batter_position,')  is out at first')
