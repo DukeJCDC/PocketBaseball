@@ -7,7 +7,8 @@ import pandas as pd
 import math
 import logging
 
-
+logging.basicConfig(level=logging.INFO,filename='game.log', filemode='w',format='%(message)s')
+logging.debug('TEST')
 # with open('testfile.csv','a') as f:
 #     f.write('START GAME')
 # #     f.write('\n')
