@@ -87,6 +87,7 @@ class Team:  #Holds each player stats and is grouped by hometeam and awayteam
     self.RF = get_stats(teamlist, 'RF')
     self.DH = get_stats(teamlist, 'DH')
 
+
 class Scoreboard: #Tracks all of the game stats and contains methods to update stats
     def __init__(self,hometeam,awayteam):
         self.hometeam = hometeam
@@ -149,7 +150,6 @@ class Scoreboard: #Tracks all of the game stats and contains methods to update s
         else:
             self.awayBatter = self.awayBatter + 1
     def nextInning(self):
-        if self.inning <10:
             self.inning = self.inning +1
 
 def get_stats(team,item): #Loads Dict to put into Player object, loaded from Team object
@@ -244,7 +244,19 @@ def find_coordinates(distance,angle):
     position = [x_pos,y_pos]
     return position
 
-def field_hit(batter_running,distance,hitlift,hitangle,fielding):
+def reset_bases():
+    FirstRunner = None
+    SecondRunner = None
+    ThirdRunner = None
+    return FirstRunner,SecondRunner,ThirdRunner
+
+def advance_bases(FirstRunner,SecondRunner,ThirdRunner):
+    ThirdRunner = SecondRunner
+    SecondRunner = FirstRunner
+    return SecondRunner,ThirdRunner
+
+
+def field_hit(batter_running,batter_name,batter_position,distance,hitlift,hitangle,fielding,FirstRunner,SecondRunner,ThirdRunner):
     #In Play hit is angle 0 to 90 degrees
     # Homerun Hits take off between 25-30 degrees typically. 
     # Groundball is <10 degrees, 
@@ -254,10 +266,10 @@ def field_hit(batter_running,distance,hitlift,hitangle,fielding):
     hitangle = hitangle - 30
     if hitangle < 0 or hitangle > 90:
         action = 'foul'
-        return action
+        return action,FirstRunner,SecondRunner,ThirdRunner
     elif hitlift >= 50:
         action = 'fly out'
-        return action
+        return action,FirstRunner,SecondRunner,ThirdRunner
     else:
         print('Hit!')
         action = 'hit'
@@ -269,7 +281,7 @@ def field_hit(batter_running,distance,hitlift,hitangle,fielding):
         if air_distance > 300:
             print('Home run!')
             action = 'home run'
-            return action
+            return action,FirstRunner,SecondRunner,ThirdRunner
         # print('The ball launched at ',hitlift,'degrees for ',air_distance,'ft in ',time_in_air)
         groundroll = distance*.3
         nearest_position = None
@@ -294,7 +306,7 @@ def field_hit(batter_running,distance,hitlift,hitangle,fielding):
             if random.randint(0,100) <= nearest_position_catching:
                 action = 'fly out'
                 print(nearest_position,'caught the ball')
-                return action 
+                return action,FirstRunner,SecondRunner,ThirdRunner
             else:
                 print(nearest_position, 'missed!') 
 
@@ -310,7 +322,8 @@ def field_hit(batter_running,distance,hitlift,hitangle,fielding):
         action = 'out at first'
     else:
         action = 'safe at first'
-    return action
+        FirstRunner = [batter_name,batter_position,batter_running]
+    return action,FirstRunner,SecondRunner,ThirdRunner
   
 
     
@@ -320,8 +333,8 @@ def main():
 
     database = r"smallballdb.db"
     conn = create_connection(database)
-    homeid = 3
-    awayid = 3
+    homeid = 2
+    awayid = 2
     hometeam = Team(homeid,conn)
     awayteam = Team(awayid,conn)
     atbat= awayteam
@@ -329,6 +342,7 @@ def main():
     action = None
     game = Scoreboard(homeid,awayid)
     walks = 0
+    FirstRunner,SecondRunner,ThirdRunner = reset_bases()
     while (game.inning <9) or (game.awayRuns == game.homeRuns and game.inning >=9):
         print('==========Top of ',game.inning+1,'==========')
         atbat= awayteam
@@ -350,9 +364,9 @@ def main():
                     # Line drive is 10-25 degrees, 
                     # Fly ball is 25-50, 
                     # Pop up is 50 or higher                    
-                    action = field_hit(batter_running,distance,hitlift,hitangle,fielding)
+                    action,FirstRunner,SecondRunner,ThirdRunner = field_hit(batter_running,playername,batter_position,distance,hitlift,hitangle,fielding,FirstRunner,SecondRunner,ThirdRunner)
 
-                if game.strike <3 and action == "foul":
+                if game.strike <2 and action == "foul":
                     game.Strike()
                     print('Foul ball!')
                     print(game.ball,'-',game.strike)
@@ -369,10 +383,26 @@ def main():
                         game.AwayHit()
                         if action == 'home run':
                             game.AwayHR()
+                            if FirstRunner != None:
+                                game.AwayRun()
+                            if SecondRunner != None:
+                                game.AwayRun()
+                            if ThirdRunner != None:
+                                game.AwayRun()
                     elif atbat == hometeam: 
                         game.HomeHit()
                         if action == 'home run':
                             game.HomeHR()
+                            print(playername,' scores!')
+                            if FirstRunner != None:
+                                game.HomeRun()
+                                print(FirstRunner[0], ' scores!')
+                            if SecondRunner != None:
+                                game.HomeRun()
+                                print(SecondRunner[0],' scores!')
+                            if ThirdRunner != None:
+                                game.HomeRun()
+                                print(ThirdRunner[0],' scores!')
                     #field_hit(distance,hitangle,hitlift,fielding.lineup,batter_running)
             if game.strike == 3 or action == 'fly out' or action == 'out at first' or action == 'out at first':
                 game.Outs()
@@ -384,10 +414,18 @@ def main():
                     print(playername,'(',batter_position,') strikes out')   
             elif game.ball == 4:
                 if atbat == awayteam:
-                    game.awayWalks = game.awayWalks + 1
-                    
+                    game.awayWalks = game.awayWalks + 1 
+                    if ThirdRunner != None:
+                        game.AwayRun()  
+                        print(ThirdRunner[0],' scores!')
                 else:
                     game.homeWalks = game.homeWalks + 1
+                    if ThirdRunner != None:
+                        game.HomeRun()
+                        print(ThirdRunner[0],' scores!')
+                SecondRunner,ThirdRunner = advance_bases(FirstRunner,SecondRunner,ThirdRunner)
+                FirstRunner = [playername,batter_running]
+
                 print(playername,'(',batter_position,') walks') 
             action = None
             game.ResetCount()
@@ -398,8 +436,10 @@ def main():
             if game.outs == 3 and atbat == awayteam:
                 atbat = hometeam
                 fielding = awayteam
+                FirstRunner,SecondRunner,ThirdRunner = reset_bases()
                 print('==========Bottom  of the ',game.inning+1,'==========')
             elif game.outs == 6:
+                FirstRunner,SecondRunner,ThirdRunner = reset_bases()
                 atbat = awayteam
                 fielding = hometeam
         game.ResetInning()
