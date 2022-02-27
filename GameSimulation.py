@@ -255,6 +255,8 @@ def reset_bases():
     return FirstRunner,SecondRunner,ThirdRunner
 
 def advance_bases(FirstRunner,SecondRunner,ThirdRunner):
+    print(SecondRunner[0],' to third')
+    print(FirstRunner[0],' to second')
     ThirdRunner = SecondRunner
     SecondRunner = FirstRunner
     return SecondRunner,ThirdRunner
@@ -271,9 +273,9 @@ def field_hit(batter_running,batter_name,batter_position,distance,hitlift,hitang
     if hitangle < 0 or hitangle > 90:
         action = 'foul'
         return action,FirstRunner,SecondRunner,ThirdRunner,game
-    elif hitlift >= 50:
-        action = 'fly out'
-        return action,FirstRunner,SecondRunner,ThirdRunner,game
+    # elif hitlift >= 50:
+    #     action = 'fly out'
+    #     return action,FirstRunner,SecondRunner,ThirdRunner,game
     else:
         print('Hit!')
         action = 'hit'
@@ -301,12 +303,19 @@ def field_hit(batter_running,batter_name,batter_position,distance,hitlift,hitang
             if distance_to_player <= nearest_distance:
                 nearest_distance = distance_to_player
                 nearest_position = item
-
+        if hitlift >=50:
+            print(batter_name,' pops up to ',nearest_position)
+        elif hitlift >=25:
+            print(batter_name,' fly ball to ',nearest_position)
+        elif hitlift >=10:
+            print(batter_name,' line drive to ',nearest_position)
+        else:
+            print(batter_name,' groundball to ',nearest_position)
         nearest_position_running = getattr(getattr(fielding,nearest_position),'running')
         nearest_position_catching = getattr(getattr(fielding,nearest_position),'catching')
         nearest_position_throwing = getattr(getattr(fielding,nearest_position),'throwingspeed')
         fielder_to_ball = nearest_distance/nearest_position_running
-        if time_in_air >= fielder_to_ball:
+        if time_in_air >= fielder_to_ball and hitlift >=10:
             if random.randint(0,100) <= nearest_position_catching:
                 action = 'fly out'
                 print(nearest_position,'caught the ball')
