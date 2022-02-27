@@ -5,6 +5,8 @@ from sqlite3 import Error
 from datetime import date
 import pandas as pd
 import math
+import logging
+
 
 # with open('testfile.csv','a') as f:
 #     f.write('START GAME')
@@ -73,9 +75,10 @@ class Player: #Loads player stats into player object, adjusting for morale
         self.player_name = player_name
 
 class Team:  #Holds each player stats and is grouped by hometeam and awayteam
-  def __init__(self, ID,conn):
+  def __init__(self, ID,conn,status):
     teamlist = pd.read_sql_query("SELECT * from '%(teamid)s' WHERE player_pos != 'BENCH'" % {'teamid': ID}, conn)
     self.lineup = pd.read_sql_query("SELECT * from '%(teamid)s' WHERE player_pos != 'BENCH'" % {'teamid': ID}, conn)
+    self.status = status
     self.P = get_stats(teamlist, 'P')
     self.C = get_stats(teamlist, 'C')
     self.FIR = get_stats(teamlist, '1B')
@@ -256,7 +259,7 @@ def advance_bases(FirstRunner,SecondRunner,ThirdRunner):
     return SecondRunner,ThirdRunner
 
 
-def field_hit(batter_running,batter_name,batter_position,distance,hitlift,hitangle,fielding,FirstRunner,SecondRunner,ThirdRunner):
+def field_hit(batter_running,batter_name,batter_position,distance,hitlift,hitangle,fielding,FirstRunner,SecondRunner,ThirdRunner,game):
     #In Play hit is angle 0 to 90 degrees
     # Homerun Hits take off between 25-30 degrees typically. 
     # Groundball is <10 degrees, 
@@ -266,10 +269,10 @@ def field_hit(batter_running,batter_name,batter_position,distance,hitlift,hitang
     hitangle = hitangle - 30
     if hitangle < 0 or hitangle > 90:
         action = 'foul'
-        return action,FirstRunner,SecondRunner,ThirdRunner
+        return action,FirstRunner,SecondRunner,ThirdRunner,game
     elif hitlift >= 50:
         action = 'fly out'
-        return action,FirstRunner,SecondRunner,ThirdRunner
+        return action,FirstRunner,SecondRunner,ThirdRunner,game
     else:
         print('Hit!')
         action = 'hit'
@@ -281,7 +284,7 @@ def field_hit(batter_running,batter_name,batter_position,distance,hitlift,hitang
         if air_distance > 300:
             print('Home run!')
             action = 'home run'
-            return action,FirstRunner,SecondRunner,ThirdRunner
+            return action,FirstRunner,SecondRunner,ThirdRunner,game
         # print('The ball launched at ',hitlift,'degrees for ',air_distance,'ft in ',time_in_air)
         groundroll = distance*.3
         nearest_position = None
@@ -306,7 +309,7 @@ def field_hit(batter_running,batter_name,batter_position,distance,hitlift,hitang
             if random.randint(0,100) <= nearest_position_catching:
                 action = 'fly out'
                 print(nearest_position,'caught the ball')
-                return action,FirstRunner,SecondRunner,ThirdRunner
+                return action,FirstRunner,SecondRunner,ThirdRunner,game
             else:
                 print(nearest_position, 'missed!') 
 
@@ -322,8 +325,14 @@ def field_hit(batter_running,batter_name,batter_position,distance,hitlift,hitang
         action = 'out at first'
     else:
         action = 'safe at first'
+        if FirstRunner is not None or SecondRunner is not None or ThirdRunner is not None:
+            if ThirdRunner is not None:
+                if fielding.status == 'away':
+                    game.AwayRun()
+                print(ThirdRunner[0],'(',ThirdRunner[1],') scores!=================================')
+            SecondRunner,ThirdRunner = advance_bases(FirstRunner,SecondRunner,ThirdRunner)
         FirstRunner = [batter_name,batter_position,batter_running]
-    return action,FirstRunner,SecondRunner,ThirdRunner
+    return action,FirstRunner,SecondRunner,ThirdRunner,game
   
 
     
@@ -333,10 +342,10 @@ def main():
 
     database = r"smallballdb.db"
     conn = create_connection(database)
-    homeid = 2
-    awayid = 2
-    hometeam = Team(homeid,conn)
-    awayteam = Team(awayid,conn)
+    homeid = 3
+    awayid = 3
+    hometeam = Team(homeid,conn,'home')
+    awayteam = Team(awayid,conn,'away')
     atbat= awayteam
     fielding = hometeam
     action = None
@@ -364,7 +373,7 @@ def main():
                     # Line drive is 10-25 degrees, 
                     # Fly ball is 25-50, 
                     # Pop up is 50 or higher                    
-                    action,FirstRunner,SecondRunner,ThirdRunner = field_hit(batter_running,playername,batter_position,distance,hitlift,hitangle,fielding,FirstRunner,SecondRunner,ThirdRunner)
+                    action,FirstRunner,SecondRunner,ThirdRunner,game = field_hit(batter_running,playername,batter_position,distance,hitlift,hitangle,fielding,FirstRunner,SecondRunner,ThirdRunner,game)
 
                 if game.strike <2 and action == "foul":
                     game.Strike()
@@ -383,24 +392,28 @@ def main():
                         game.AwayHit()
                         if action == 'home run':
                             game.AwayHR()
-                            if FirstRunner != None:
+                            print(playername,' socres!')
+                            if FirstRunner is not None:
                                 game.AwayRun()
-                            if SecondRunner != None:
+                                print(FirstRunner[0],' scores!')
+                            if SecondRunner is not None:
                                 game.AwayRun()
-                            if ThirdRunner != None:
+                                print(SecondRunner[0],' scores!')
+                            if ThirdRunner is not None:
                                 game.AwayRun()
+                                print(ThirdRunner[0],' scores!')
                     elif atbat == hometeam: 
                         game.HomeHit()
                         if action == 'home run':
                             game.HomeHR()
                             print(playername,' scores!')
-                            if FirstRunner != None:
+                            if FirstRunner is not None:
                                 game.HomeRun()
                                 print(FirstRunner[0], ' scores!')
-                            if SecondRunner != None:
+                            if SecondRunner is not None:
                                 game.HomeRun()
                                 print(SecondRunner[0],' scores!')
-                            if ThirdRunner != None:
+                            if ThirdRunner is not None:
                                 game.HomeRun()
                                 print(ThirdRunner[0],' scores!')
                     #field_hit(distance,hitangle,hitlift,fielding.lineup,batter_running)
@@ -415,12 +428,12 @@ def main():
             elif game.ball == 4:
                 if atbat == awayteam:
                     game.awayWalks = game.awayWalks + 1 
-                    if ThirdRunner != None:
+                    if ThirdRunner is not None:
                         game.AwayRun()  
                         print(ThirdRunner[0],' scores!')
                 else:
                     game.homeWalks = game.homeWalks + 1
-                    if ThirdRunner != None:
+                    if ThirdRunner is not None:
                         game.HomeRun()
                         print(ThirdRunner[0],' scores!')
                 SecondRunner,ThirdRunner = advance_bases(FirstRunner,SecondRunner,ThirdRunner)
