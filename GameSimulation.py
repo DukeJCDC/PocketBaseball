@@ -255,8 +255,10 @@ def reset_bases():
     return FirstRunner,SecondRunner,ThirdRunner
 
 def advance_bases(FirstRunner,SecondRunner,ThirdRunner):
-    print(SecondRunner[0],' to third')
-    print(FirstRunner[0],' to second')
+    if SecondRunner is not None:
+        print(SecondRunner[0],' to third')
+    if FirstRunner is not None:
+        print(FirstRunner[0],' to second')
     ThirdRunner = SecondRunner
     SecondRunner = FirstRunner
     return SecondRunner,ThirdRunner
@@ -352,8 +354,8 @@ def main():
 
     database = r"smallballdb.db"
     conn = create_connection(database)
-    homeid = 3
-    awayid = 3
+    homeid = 1
+    awayid = 1
     hometeam = Team(homeid,conn,'home')
     awayteam = Team(awayid,conn,'away')
     atbat= awayteam
